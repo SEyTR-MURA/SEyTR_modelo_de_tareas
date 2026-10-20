@@ -100,7 +100,7 @@ cifras obtenidas en una placa del curso. Tus cifras pueden variar algo.
   `xTaskCreate()` crea sin fijar el núcleo; y su marca de agua. La tarea del
   teclado sale «en ejecucion», porque es ella la que escribe el informe.
   Medido: marca de agua de 1832 y 1836 bytes en `rapido` y `lento`, de los
-  3072 de su pila, y de 2896 en la del teclado, de 4096; las mismas cifras al
+  3072 de su pila, y de 2896 en la del teclado, de 4096; las mismas en `rapido` y en el teclado al
   cabo de más de un minuto.
 - **`s`.** `rapido` escribe que se suspende en su siguiente activación, deja de
   conmutar y el informe la da «suspendida». Al reanudarla, recupera de golpe
