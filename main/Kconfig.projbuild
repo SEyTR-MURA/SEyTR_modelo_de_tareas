@@ -1,0 +1,16 @@
+# Las opciones declaradas en un Kconfig.projbuild aparecen en el nivel superior
+# del menu de configuracion y se convierten en macros CONFIG_... disponibles
+# desde el codigo. Los pines no estan aqui: estan en main/pines.h.
+
+menu "SEyTR - Modelo de tareas"
+
+    config SEYTR_PILA_CORTA
+        bool "Permitir la tecla p: tarea con la pila insuficiente"
+        default n
+        help
+            Con esta opcion, la tecla p crea una tarea cuya pila no basta para
+            lo que hace. FreeRTOS detecta el desbordamiento en el siguiente
+            cambio de contexto, escribe un mensaje que nombra la tarea y la
+            placa se reinicia. Viene desactivada porque reinicia la placa.
+
+endmenu
