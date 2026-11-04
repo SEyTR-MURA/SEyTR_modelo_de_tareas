@@ -86,62 +86,81 @@ apaga su LED, lo dice y se borra a sí misma con `vTaskDelete(NULL)`.
 
 ## Qué deberías ver
 
-Para cada tecla se describe lo que debe pasar y, después de «Medido:», las
-cifras obtenidas en una placa del curso. Tus cifras pueden variar algo.
+Para cada tecla se da primero lo que se espera según el código y la
+documentación de ESP-IDF, y después lo que se observó al probarla en una
+placa: si coincide, lo corrobora; si no, se explica a qué puede deberse la
+diferencia. Tus cifras pueden variar algo.
 
-- **Al arrancar.** Un aviso del componente `led` por cada LED sin pin elegido,
-  las dos tareas que empiezan y la línea `main_task: Returned from app_main()`,
-  que confirma que `app_main` ha terminado. Las trazas de `rapido` dicen unos
-  200 ms entre conmutaciones, y las de `lento`, unos 750 ms. Medido: entre
-  199,9 y 200,0 ms, y entre 749,9 y 750,0 ms; la primera, a veces algo
+- **Al arrancar.** *Esperado:* un aviso del componente `led` por cada tarea de
+  parpadeo cuyo LED no tiene pin, las dos tareas que empiezan y la línea
+  `main_task: Returned from app_main()`, que confirma que `app_main` ha
+  terminado. Las trazas de `rapido` dicen unos 200 ms entre conmutaciones, y
+  las de `lento`, unos 750 ms.
+
+  *Observado:* como se espera. La primera traza de cada tarea da a veces algo
   menos.
-- **`i`.** Las dos tareas de parpadeo, «bloqueada» casi siempre, porque pasan
-  casi todo el tiempo esperando; prioridad 5; «sin afinidad», porque
-  `xTaskCreate()` crea sin fijar el núcleo; y su marca de agua. La tarea del
-  teclado sale «en ejecucion», porque es ella la que escribe el informe.
-  Medido: marca de agua de 1832 y 1836 bytes en `rapido` y `lento`, de los
-  3072 de su pila, y de 2896 en la del teclado, de 4096; las mismas en `rapido` y en el teclado al
-  cabo de más de un minuto.
-- **`s`.** `rapido` escribe que se suspende en su siguiente activación, deja de
-  conmutar y el informe la da «suspendida». Al reanudarla, recupera de golpe
-  las activaciones perdidas: su espera absoluta tenía instantes ya pasados, y
-  `xTaskDelayUntil()` vuelve enseguida en cada uno, marcado como «activacion
-  tardia», hasta alcanzar el siguiente instante futuro. La primera traza da el
-  tiempo que ha estado suspendida; tras 3 s suspendida, salen unas quince
-  tardías. Si se reanuda antes de 200 ms, no hay ninguna. Si se pulsa `s` dos
-  veces antes de que se suspenda, la segunda responde «Ya se ha pedido a rapido
-  que se suspenda.». Las tardías no salen
-  todas a la vez: cada vuelta escribe su traza, y `printf()` espera, sin
-  bloquearse, a que quepa en la memoria de la UART de la consola, de
-  128 bytes. Una traza de 62 caracteres, a 115200 baudios y 10 bits por
-  carácter, tarda 5,4 ms en salir, y ese es el intervalo entre tardías en
-  cuanto esa memoria se llena.
-  Escribir también ocupa tiempo de la tarea. Medido: tras 4,6 s suspendida,
-  23 tardías: la primera a 4605,1 ms de la anterior, las dos siguientes a 0,1
-  y 1,7 ms, y las demás a 5,4 ms, salvo una de 9,2 ms; después, vuelta a 200 ms.
-- **`t`.** En su siguiente activación, `lento` escribe que termina y se borra.
-  El informe deja de darla en cuanto se pulsa `t`, antes de que termine: la
-  tarea del teclado suelta su manejador al pedírselo, porque después de que la
-  tarea se borre el manejador ya no vale. Medido: «lento: termina de forma
-  ordenada y se borra a si misma», y el informe la da «sin manejador».
-- **`n`.** `tercero` empieza a conmutar cada 330 ms y el informe la da fijada
-  al «nucleo 1». Medido: entre 329,9 y 330,0 ms. Si el pin de su LED no
-  existe, avisa con un error, sigue sin LED y conmuta igual.
-- **`p`**, si está activada. La tarea `pila_corta` llama a una función que se
-  llama a sí misma, y cada nivel ocupa un poco más de pila y se bloquea un
-  tick. Al cabo de unos pocos niveles se sale de su pila: FreeRTOS lo detecta
-  en un cambio de contexto, escribe `***ERROR*** A stack overflow in task
-  pila_corta has been detected.` con la traza de llamadas, que puede acabar en
-  `|<-CORRUPTED`, y la placa se reinicia. La comprobación solo se hace en los
-  cambios de contexto: cuando se detecta, ya se ha escrito memoria fuera de la
-  pila. Y no está garantizada: el método que viene activado mira unos bytes de
-  control al final de la pila, y el libro de FreeRTOS advierte de que es muy
-  improbable, pero posible, que un desbordamiento no los toque. Medido: el
-  mensaje sale enseguida, la traza pasa por `vApplicationStackOverflowHook` y
-  `vTaskSwitchContext`, es decir, por el cambio de contexto, y acaba en
-  `|<-CORRUPTED`; la placa se reinicia (`rst:0xc (RTC_SW_CPU_RST)`) y vuelve a
-  arrancar normal. Igual recién arrancada, con `lento` terminada y con
-  `tercero` creada.
+- **`i`.** *Esperado:* las dos tareas de parpadeo, «bloqueada» casi siempre,
+  porque pasan casi todo el tiempo esperando; prioridad 5; «sin afinidad»,
+  porque `xTaskCreate()` crea sin fijar el núcleo; y su marca de agua. La
+  tarea del teclado sale «en ejecucion», porque es ella la que escribe el
+  informe.
+
+  *Observado:* como se espera. La marca de agua de `rapido` y `lento` es algo
+  más de la mitad de sus 3072 bytes de pila, y la de la tarea del teclado, más
+  de dos tercios de sus 4096. Al cabo de más de un minuto, la marca de agua de
+  `rapido` y la del teclado no han bajado.
+- **`s`.** *Esperado:* `rapido` escribe que se suspende en su siguiente
+  activación, deja de conmutar y el informe la da «suspendida». Al reanudarla,
+  recupera de golpe las activaciones perdidas: su espera absoluta tenía
+  instantes ya pasados, y `xTaskDelayUntil()` vuelve enseguida en cada uno,
+  marcado como «activacion tardia», hasta alcanzar el siguiente instante
+  futuro. La primera traza da el tiempo que ha estado suspendida; tras 3 s
+  suspendida, salen unas quince activaciones tardías. Si se reanuda antes de
+  200 ms, no hay ninguna. Si se pulsa `s` dos veces antes de que se suspenda,
+  la segunda responde «Ya se ha pedido a rapido que se suspenda.». Las
+  activaciones tardías no salen todas a la vez: cada vuelta escribe su traza,
+  y `printf()` espera, sin bloquearse, a que quepa en la memoria de la UART de
+  la consola, de 128 bytes. Una traza de 62 caracteres, a 115200 baudios y
+  10 bits por carácter, tarda 5,4 ms en salir, y ese es el intervalo entre
+  activaciones tardías en cuanto esa memoria se llena. Escribir también ocupa
+  tiempo de la tarea.
+
+  *Observado:* como se espera, también al reanudarla antes de 200 ms y al
+  pulsar `s` dos veces seguidas. Sale una activación tardía por cada
+  periodo de 200 ms que ha estado suspendida, y a veces una más: la propia
+  ráfaga dura del orden de 100 ms, y en ese tiempo puede pasar otro instante.
+  Tras la primera, las dos siguientes salen casi seguidas, porque las dos
+  primeras trazas caben en la memoria de la UART, y las demás, al intervalo
+  calculado, salvo alguna algo más larga.
+  Después, vuelta a 200 ms.
+- **`t`.** *Esperado:* en su siguiente activación, `lento` escribe que termina
+  y se borra. El informe deja de darla en cuanto se pulsa `t`, antes de que
+  termine: la tarea del teclado suelta su manejador al pedírselo, porque
+  después de que la tarea se borre el manejador ya no vale.
+
+  *Observado:* como se espera: sale «lento: termina de forma ordenada y se
+  borra a si misma», el informe la da «sin manejador» y su LED queda apagado.
+- **`n`.** *Esperado:* `tercero` empieza a conmutar cada 330 ms y el informe la
+  da fijada al «nucleo 1». Si el pin de su LED no existe, avisa con un error,
+  sigue sin LED y conmuta igual.
+
+  *Observado:* como se espera, también con un pin que no existe.
+- **`p`**, si está activada. *Esperado:* la tarea `pila_corta` llama a una
+  función que se llama a sí misma, y cada nivel ocupa un poco más de pila y se
+  bloquea un tick. Al cabo de unos pocos niveles se sale de su pila: FreeRTOS
+  lo detecta en un cambio de contexto, escribe `***ERROR*** A stack overflow
+  in task pila_corta has been detected.` con la traza de llamadas, que puede
+  acabar en `|<-CORRUPTED`, y la placa se reinicia. La comprobación solo se
+  hace en los cambios de contexto: cuando se detecta, ya se ha escrito memoria
+  fuera de la pila. Y no está garantizada: el método que viene activado mira
+  unos bytes de control al final de la pila, y el libro de FreeRTOS advierte
+  de que es muy improbable, pero posible, que un desbordamiento no los toque.
+
+  *Observado:* como se espera. El mensaje sale enseguida, la traza pasa por
+  `vApplicationStackOverflowHook` y `vTaskSwitchContext`, es decir, por el
+  cambio de contexto, y acaba en `|<-CORRUPTED`; la placa se reinicia
+  (`rst:0xc (RTC_SW_CPU_RST)`) y vuelve a arrancar normal. Igual recién
+  arrancada, con `lento` terminada y con `tercero` creada.
 
 ## Qué puedes cambiar sin tocar el código
 
